@@ -30,9 +30,9 @@ uses `re.search()`, so the pattern can match anywhere in the input string;
 use anchors to constrain it.
 
 Example usage:
-    cat intrace.json | tracefilter - '\\bStaging|thirdparty\\b' > outtrace.json
+    cat intrace.json | tracefilter - '\\b(Staging|thirdparty)\\b' > outtrace.json
 Or for stdin:
-    tracefilter intrace.json '\\bStaging|thirdparty\\b' > outtrace.json
+    tracefilter intrace.json '\\b(Staging|thirdparty)\\b' > outtrace.json
 
 Example filtering out entries of shorter duration than 100,000 microseconds:
     tracefilter intrace.json --field=dur '^[0-9]{1,5}$' > outtrace.json
