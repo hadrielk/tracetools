@@ -9,7 +9,7 @@ ninjatracing -a build/.ninja_log | tracefilter - '\bStaging|thirdparty\b' | trac
 ```
 
 
-### tracefilter
+## tracefilter
 
 Takes a trace file and filters out entries based on matching a given regex pattern for a given field.
 
@@ -25,7 +25,29 @@ an Object-based JSON format. The input file/stdin can be Array or Object-based J
 Further details are available with `tracefilter -h`.
 
 
-### trace2object
+## tracedup
+
+Takes a trace file and duplicates entries based on matching a given regex pattern for a given field,
+assigning them new PID numbers. This is useful to display separate graph sections of specific parts,
+since most visual tools separate time-lines by PID.
+
+Usage: `tracedup ( <filepath> | - ) [--from-pid=<pid>] [--to-pid=<pid>] [--field=<field>] <pattern>`
+
+Use `-` instead of a `path/to/file` to use `stdin`. The default field is "`name`", but can
+be changed with the `--field=<field>` option.
+
+The `--from-pid` specifies what current PID to copy from, while the `--to-pid`
+specifies the PID number to assign to the copied entry. By default the `--from-pid`
+is `0`, and the `--to-pid` is one more than the highest one in the file.
+
+By default, the given pattern is applied to the 'name' field of each Array
+entry, or of the Array in the "`traceEvents`" and "`samples`" key fields if it's
+an Object-based JSON format. The input file/stdin can be Array or Object-based JSON.
+
+Further details are available with `tracedup -h`.
+
+
+## trace2object
 
 Takes a JSON Array-based trace file and converts it to an Object-based one, with the
 entries moved into a "`traceEvents`" object key field. This allows one to add more

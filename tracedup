@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+
+# Copyright 2022 Hadriel Kaplan
+# See LICENSE file for MIT license.
+
+"""tracedup ( <filepath> | - ) [--from-pid=<pid>] [--to-pid=<pid>] [--field=<field>] <pattern>
+
+Reads in a trace file or stdin, and duplicates entries of a given from-pid
+number matching the given regex pattern for the given field, and giving them
+the given to-pid number.
+
+The trace file format can be either Array or Object-based JSON.
+
+If no `--from-pid` is given, defaults to copying from pid 0. If no `--to-pid`
+is given, it gives them the highest found pid + 1.
+
+By default, the given pattern is applied to the 'name' field of each Array
+entry, or of the Array in the 'traceEvents' and 'samples' Object key fields if
+it's an Object-based JSON format.
+
+To choose a different key field, use the `--field=<field>` option.
+
+If the chosen field's type is not a string, it will be converted to a string
+before applying the regex pattern.
+
+To apply different patterns to different fields, simply pipe multiple
+tracedup commands together, specifying the same pids.
+
+The regex pattern uses Python's engine, so you can have a case-insensitive
+match by preceeding the pattern with '(?i)', for example. Also, this script
+uses `re.search()`, so the pattern can match anywhere in the input string;
+use anchors to constrain it.
+
+Example usage:
+    cat intrace.json | tracedup - '\\b(Staging|thirdparty)\\b' > outtrace.json
+Or for stdin:
+    tracedup intrace.json '\\b(Staging|thirdparty)\\b' > outtrace.json
+
+Example only copying entries of longer duration than 9,999,999 microseconds:
+    tracedup intrace.json --field=dur '^[1-9][0-9]{7,}$' > outtrace.json
+
+Example only copying entries with names ending in `.a` or `.o`:
+    tracedup intrace.json '\\.[ao]\\b' > outtrace.json
+"""
+
+
+from __future__ import print_function
+import json
+import optparse
+import re
+import sys
+
+
+ENTRY_KEYS = ["traceEvents", "samples"]
+
+
+def dup_entries(entries, field, pattern, from_pid, to_pid):
+    match_re = re.compile(pattern)
+    output = []
+    for entry in entries:
+        output.append(entry)
+        if (
+            "pid" in entry
+            and entry["pid"] == from_pid
+            and field in entry
+            and match_re.search(str(entry[field]))
+        ):
+            clone = entry.copy()
+            clone["pid"] = to_pid
+            output.append(clone)
+    return output
+
+
+def dup_json(trace, field, pattern, from_pid, to_pid):
+    if isinstance(trace, list):
+        return dup_entries(trace, field, pattern, from_pid, to_pid)
+    if isinstance(trace, dict):
+        for key in ENTRY_KEYS:
+            if key in trace:
+                trace[key] = dup_entries(trace[key], field, pattern, from_pid, to_pid)
+    return trace
+
+
+def find_highest_pid_in(entries):
+    return max((entry.get("pid", 0) for entry in entries), default=0)
+
+
+def find_highest_pid(trace):
+    if isinstance(trace, list):
+        return max(find_highest_pid_in(trace), 0)
+    if isinstance(trace, dict):
+        pid = 0
+        for key in ENTRY_KEYS:
+            if key in trace:
+                pid = max(find_highest_pid_in(trace[key]), pid)
+    return pid
+
+
+def get_parser():
+    parser = optparse.OptionParser(__doc__)
+    parser.add_option(
+        "-f",
+        "--from-pid",
+        dest="from_pid",
+        type="int",
+        default=0,
+        help="The PID number to copy from (default: %default)",
+    )
+    parser.add_option(
+        "-t",
+        "--to-pid",
+        dest="to_pid",
+        type="int",
+        default=-1,
+        help="The PID number to assign the copy (default: highest found + 1)",
+    )
+    parser.add_option(
+        "-k",
+        "--field",
+        dest="field",
+        default="name",
+        help="Specify a JSON field to filter on (default: %default)",
+    )
+    parser.add_option(
+        "--stdin",
+        dest="use_stdin",
+        action="store_true",
+        help="Use stdin for input (can just be a '-' instead)",
+    )
+    return parser
+
+
+def main(argv):
+    # optparse can't handle a single dash
+    argv = ["--stdin" if x == "-" else x for x in argv]
+
+    parser = get_parser()
+    (options, args) = parser.parse_args(argv)
+
+    if options.use_stdin:
+        trace = json.load(sys.stdin)
+    elif len(args) != 2:
+        parser.print_help()
+        print("\nERROR: no input file given, or no pattern, or too many arguments\n")
+        return 1
+    else:
+        with open(args[0], "r") as file:
+            trace = json.load(file)
+
+    to_pid = options.to_pid
+    if to_pid == -1:
+        to_pid = find_highest_pid(trace) + 1
+
+    output = dup_json(trace, options.field, args[1], options.from_pid, to_pid)
+    json.dump(output, sys.stdout)
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
