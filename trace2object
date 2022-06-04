@@ -9,16 +9,16 @@ Takes a trace file from either stdin or a given filename, and transforms
 it from an Array-based JSON to a Object-based one, based on the Google
 Trace Format spec.
 
-This allows it to be consumed by more tools.
+If the input JSON is already Object-based, it is passed through unchanged.
 
 Example usage:
     ninja -C $BUILDDIR
-    ninjatracing $BUILDDIR/.ninja_log | traceclean > trace.json
+    ninjatracing $BUILDDIR/.ninja_log | trace2object > trace.json
 
 Or:
     ninja -C $BUILDDIR
     ninjatracing $BUILDDIR/.ninja_log > trace.json
-    traceclean intrace.json > outtrace.json   
+    trace2object intrace.json > outtrace.json   
 """
 
 

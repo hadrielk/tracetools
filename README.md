@@ -5,20 +5,8 @@ All the scripts in here are composable by piping them together, in any order.
 
 For example:
 ```bash
-ninjatracing -a build/.ninja_log | tracefilter - '\bStaging|thirdparty\b' | traceclean > trace.json
+ninjatracing -a build/.ninja_log | tracefilter - '\bStaging|thirdparty\b' | trace2object > trace.json
 ```
-
-
-### traceclean
-
-Takes a JSON Array-based trace file and converts it to an Object-based one, with the
-entries moved into a "`traceEvents`" object key field. This allows one to add more
-metadata to the trace file.
-
-Usage: `tracelean [<filepath>]`
-
-Uses `stdin` by default, unless a `path/to/file` is given. If the input JSON is already
-Object-based, it is passed through unchanged.
 
 
 ### tracefilter
@@ -35,6 +23,18 @@ entry, or of the Array in the "`traceEvents`" and "`samples`" key fields if it's
 an Object-based JSON format. The input file/stdin can be Array or Object-based JSON.
 
 Further details are available with `tracefilter -h`.
+
+
+### trace2object
+
+Takes a JSON Array-based trace file and converts it to an Object-based one, with the
+entries moved into a "`traceEvents`" object key field. This allows one to add more
+metadata to the trace file.
+
+Usage: `trace2object [<filepath>]`
+
+Uses `stdin` by default, unless a `path/to/file` is given. If the input JSON is already
+Object-based, it is passed through unchanged.
 
 
 ## Background
