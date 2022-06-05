@@ -3,7 +3,7 @@
 # Copyright 2022 Hadriel Kaplan
 # See LICENSE file for MIT license.
 
-"""tracefilter ( <filepath> | - ) [--field=<field>] <pattern>
+"""tracefilter [--field=<field>] <pattern> [<filepath>]
 
 Filters a trace file.
 
@@ -30,12 +30,12 @@ uses `re.search()`, so the pattern can match anywhere in the input string;
 use anchors to constrain it.
 
 Example usage:
-    tracefilter intrace.json '\\b(Staging|thirdparty)\\b' > outtrace.json
+    tracefilter '\\b(Staging|thirdparty)\\b' intrace.json > outtrace.json
 Or for stdin:
-    cat intrace.json | tracefilter - '\\b(Staging|thirdparty)\\b' > outtrace.json
+    cat intrace.json | tracefilter '\\b(Staging|thirdparty)\\b' > outtrace.json
 
 Example filtering out entries of shorter duration than 100,000 microseconds:
-    tracefilter intrace.json --field=dur '^[0-9]{1,5}$' > outtrace.json
+    tracefilter --field=dur '^[0-9]{1,5}$' intrace.json > outtrace.json
 """
 
 
@@ -67,9 +67,6 @@ def filter_json(trace, field, pattern):
 
 
 def main(argv):
-    # optparse can't handle a single dash
-    argv = ["--stdin" if x == "-" else x for x in argv]
-
     parser = optparse.OptionParser(__doc__)
     parser.add_option(
         "--field",
@@ -77,25 +74,19 @@ def main(argv):
         default="name",
         help="Specify a JSON field to filter on (default: %default)",
     )
-    parser.add_option(
-        "--stdin",
-        dest="use_stdin",
-        action="store_true",
-        help="Use stdin for input (can just be a '-' instead)",
-    )
     (options, args) = parser.parse_args(argv)
 
-    if options.use_stdin:
+    if len(args) == 1:
         trace = json.load(sys.stdin)
-    elif len(args) != 2:
-        parser.print_help()
-        print("\nERROR: no input file given, or no pattern, or too many arguments\n")
-        return 1
-    else:
-        with open(args[0], "r") as file:
+    elif len(args) == 2:
+        with open(args[1], "r") as file:
             trace = json.load(file)
+    else:
+        parser.print_help()
+        print("\nERROR: no pattern given, or too many arguments\n")
+        return 1
 
-    json.dump(filter_json(trace, options.field, args[1]), sys.stdout)
+    json.dump(filter_json(trace, options.field, args[0]), sys.stdout)
 
     return 0
 

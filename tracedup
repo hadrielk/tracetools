@@ -3,7 +3,7 @@
 # Copyright 2022 Hadriel Kaplan
 # See LICENSE file for MIT license.
 
-"""tracedup ( <filepath> | - ) [--from-pid=<pid>] [--to-pid=<pid>] [--field=<field>] <pattern>
+"""tracedup [--from-pid=<pid>] [--to-pid=<pid>] [--field=<field>] <pattern> [<filepath>]
 
 Reads in a trace file or stdin, and duplicates entries of a given from-pid
 number matching the given regex pattern for the given field, and giving them
@@ -32,15 +32,15 @@ uses `re.search()`, so the pattern can match anywhere in the input string;
 use anchors to constrain it.
 
 Example usage:
-    tracedup intrace.json '\\b(Staging|thirdparty)\\b' > outtrace.json
+    tracedup '\\b(Staging|thirdparty)\\b' intrace.json > outtrace.json
 Or for stdin:
-    cat intrace.json | tracedup - '\\b(Staging|thirdparty)\\b' > outtrace.json
+    cat intrace.json | tracedup '\\b(Staging|thirdparty)\\b' > outtrace.json
 
 Example only copying entries of longer duration than 9,999,999 microseconds:
-    tracedup intrace.json --field=dur '^[1-9][0-9]{7,}$' > outtrace.json
+    tracedup --field=dur '^[1-9][0-9]{7,}$' intrace.json > outtrace.json
 
 Example only copying entries with names ending in `.a` or `.o`:
-    tracedup intrace.json '\\.[ao]\\b' > outtrace.json
+    tracedup '\\.[ao]\\b' intrace.json > outtrace.json
 """
 
 
@@ -121,37 +121,28 @@ def get_parser():
         default="name",
         help="Specify a JSON field to filter on (default: %default)",
     )
-    parser.add_option(
-        "--stdin",
-        dest="use_stdin",
-        action="store_true",
-        help="Use stdin for input (can just be a '-' instead)",
-    )
     return parser
 
 
 def main(argv):
-    # optparse can't handle a single dash
-    argv = ["--stdin" if x == "-" else x for x in argv]
-
     parser = get_parser()
     (options, args) = parser.parse_args(argv)
 
-    if options.use_stdin:
+    if len(args) == 1:
         trace = json.load(sys.stdin)
-    elif len(args) != 2:
-        parser.print_help()
-        print("\nERROR: no input file given, or no pattern, or too many arguments\n")
-        return 1
-    else:
-        with open(args[0], "r") as file:
+    elif len(args) == 2:
+        with open(args[1], "r") as file:
             trace = json.load(file)
+    else:
+        parser.print_help()
+        print("\nERROR: no pattern given, or too many arguments\n")
+        return 1
 
     to_pid = options.to_pid
     if to_pid == -1:
         to_pid = find_highest_pid(trace) + 1
 
-    output = dup_json(trace, options.field, args[1], options.from_pid, to_pid)
+    output = dup_json(trace, options.field, args[0], options.from_pid, to_pid)
     json.dump(output, sys.stdout)
 
     return 0

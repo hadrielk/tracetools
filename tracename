@@ -3,7 +3,7 @@
 # Copyright 2022 Hadriel Kaplan
 # See LICENSE file for MIT license.
 
-"""tracename ( <filepath> | - ) [ --pid=<pid> [--tid=<tid>]] <name>
+"""tracename [ --pid=<pid> [--tid=<tid>]] <name> [<filepath>]
 
 Reads in a trace file or stdin, and adds a metadata entry to assign a name
 for the given PID or TID.
@@ -82,33 +82,24 @@ def get_parser():
         default=-1,
         help="The TID number to assign the name for (default: None, the whole PID)",
     )
-    parser.add_option(
-        "--stdin",
-        dest="use_stdin",
-        action="store_true",
-        help="Use stdin for input (can just be a '-' instead)",
-    )
     return parser
 
 
 def main(argv):
-    # optparse can't handle a single dash
-    argv = ["--stdin" if x == "-" else x for x in argv]
-
     parser = get_parser()
     (options, args) = parser.parse_args(argv)
 
-    if options.use_stdin:
+    if len(args) == 1:
         trace = json.load(sys.stdin)
-    elif len(args) != 2:
+    elif len(args) == 2:
+        with open(args[1], "r") as file:
+            trace = json.load(file)
+    else:
         parser.print_help()
         print("\nERROR: no input file given, or no pattern, or too many arguments\n")
         return 1
-    else:
-        with open(args[0], "r") as file:
-            trace = json.load(file)
 
-    json.dump(add_name(trace, options.pid, options.tid, args[1]), sys.stdout)
+    json.dump(add_name(trace, options.pid, options.tid, args[0]), sys.stdout)
 
     return 0
 

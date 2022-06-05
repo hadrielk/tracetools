@@ -1,20 +1,20 @@
 # tracetools
-Utility programs to manipulate trace files, such as those output by [ninjatracing](https://github.com/nico/ninjatracing).
+Utility programs to manipulate Chrome-style trace files, such as those output by [ninjatracing](https://github.com/nico/ninjatracing).
 
 All the scripts in here are composable by piping them together, in any order.
 
 For example:
 ```bash
-ninjatracing -a build/.ninja_log | tracefilter - '\b(Staging|thirdparty)\b' | trace2object > trace.json
+ninjatracing -a build/.ninja_log | tracefilter '\b(Staging|thirdparty)\b' | trace2object > trace.json
 ```
 
 Another example:
 ```bash
 cat infile.json \
-    | tracefilter - '\b(Staging|thirdparty)\b' \
-    | tracename - 'Building' \
-    | tracedup - --to_pid=1 '\.[ao]\b' \
-    | tracename - --pid=1 'Compiling' \
+    | tracefilter '\b(Staging|thirdparty)\b' \
+    | tracename 'Building' \
+    | tracedup --to_pid=1 '\.[ao]\b' \
+    | tracename --pid=1 'Compiling' \
     > trace.json
 ```
 
@@ -22,9 +22,9 @@ cat infile.json \
 
 Takes a trace file and filters out entries based on matching a given regex pattern for a given field.
 
-Usage: `tracefilter ( <filepath> | - ) [--field=<field>] <pattern>`
+Usage: `tracefilter [--field=<field>] <pattern> [<filepath>]`
 
-Use `-` instead of a `path/to/file` to use `stdin`. The default field is "`name`", but can
+Uses `stdin` by default, unless a `filepath` is given. The default field is "`name`", but can
 be changed with the `--field=<field>` option.
 
 By default, the given pattern is applied to the 'name' field of each Array
@@ -40,10 +40,11 @@ Takes a trace file and duplicates entries based on matching a given regex patter
 assigning them new PID numbers. This is useful to display separate graph sections of specific parts,
 since most visual tools separate time-lines by PID.
 
-Usage: `tracedup ( <filepath> | - ) [--from-pid=<pid>] [--to-pid=<pid>] [--field=<field>] <pattern>`
+Usage: `tracedup [--from-pid=<pid>] [--to-pid=<pid>] [--field=<field>] <pattern> [<filepath>]`
 
-Use `-` instead of a `path/to/file` to use `stdin`. The default field is "`name`", but can
-be changed with the `--field=<field>` option.
+Uses `stdin` by default, unless a `filepath` is given.
+
+The default field is "`name`", but can be changed with the `--field=<field>` option.
 
 The `--from-pid` specifies what current PID to copy from, while the `--to-pid`
 specifies the PID number to assign to the copied entry. By default the `--from-pid`
@@ -61,7 +62,9 @@ Further details are available with `tracedup -h`.
 Reads in a trace file or stdin, and adds a metadata entry to assign a display name
 for the given PID or TID.
 
-Usage: `tracename ( <filepath> | - ) [ --pid=<pid> [--tid=<tid>]] <name>`
+Usage: `tracename [ --pid=<pid> [--tid=<tid>]] <name> [<filepath>]`
+
+Uses `stdin` by default, unless a `filepath` is given.
 
 If no `--pid` is given, defaults naming PID 0.
 
@@ -79,7 +82,7 @@ metadata to the trace file.
 
 Usage: `trace2object [<filepath>]`
 
-Uses `stdin` by default, unless a `path/to/file` is given. If the input JSON is already
+Uses `stdin` by default, unless a `filepath` is given. If the input JSON is already
 Object-based, it is passed through unchanged.
 
 
