@@ -1,5 +1,6 @@
 # tracetools
-Utility programs to manipulate Chrome-style trace files, such as those output by [ninjatracing](https://github.com/nico/ninjatracing).
+Utility programs to manipulate Chrome-style trace files, and in particular those output by
+[ninjatracing](https://github.com/nico/ninjatracing) for the purpose of build-time analysis.
 
 All the scripts in here are composable by piping them together, in any order.
 
@@ -100,7 +101,7 @@ format [specified by Google](https://docs.google.com/document/d/1CvAClvFfyA5R-Ph
 
 Such files can be viewed in:
 * [Perfetto](https://ui.perfetto.dev/)
-* [Chrome tracing](chrome://tracing/) - open Chrome and put `about:tracing` in the address box.
+* [Chrome tracing](https://www.chromium.org/developers/how-tos/trace-event-profiling-tool/) - open Chrome and put `about:tracing` in the address box.
 * [Speedscope](https://www.speedscope.app)
 
 ...and others.
