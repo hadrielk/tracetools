@@ -5,9 +5,18 @@ All the scripts in here are composable by piping them together, in any order.
 
 For example:
 ```bash
-ninjatracing -a build/.ninja_log | tracefilter - '\bStaging|thirdparty\b' | trace2object > trace.json
+ninjatracing -a build/.ninja_log | tracefilter - '\b(Staging|thirdparty)\b' | trace2object > trace.json
 ```
 
+Another example:
+```bash
+cat infile.json \
+    | tracefilter - '\b(Staging|thirdparty)\b' \
+    | tracename - 'Building' \
+    | tracedup - --to_pid=1 '\.[ao]\b' \
+    | tracename - --pid=1 'Compiling' \
+    > trace.json
+```
 
 ## tracefilter
 
@@ -61,8 +70,8 @@ Object-based, it is passed through unchanged.
 
 ## Background
 
-Trace files come in many formats. The tools in here are meant for the JSON [trace file
-format specified by Google](https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview).
+Trace files come in many formats. The tools in here are meant for the JSON trace file
+format [specified by Google](https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview).
 
 Such files can be viewed in:
 * [Perfetto](https://ui.perfetto.dev/)

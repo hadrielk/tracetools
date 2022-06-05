@@ -32,9 +32,9 @@ uses `re.search()`, so the pattern can match anywhere in the input string;
 use anchors to constrain it.
 
 Example usage:
-    cat intrace.json | tracedup - '\\b(Staging|thirdparty)\\b' > outtrace.json
-Or for stdin:
     tracedup intrace.json '\\b(Staging|thirdparty)\\b' > outtrace.json
+Or for stdin:
+    cat intrace.json | tracedup - '\\b(Staging|thirdparty)\\b' > outtrace.json
 
 Example only copying entries of longer duration than 9,999,999 microseconds:
     tracedup intrace.json --field=dur '^[1-9][0-9]{7,}$' > outtrace.json
