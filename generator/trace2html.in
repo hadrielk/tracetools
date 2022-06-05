@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+
+# Copyright 2022 Hadriel Kaplan
+# See LICENSE file for MIT license.
+
+###############################################################################
+#
+#
+# THIS FILE IS AUTO-GENERATED
+#
+#
+###############################################################################
+
+"""trace2html [--title=<title>] [<filepath>] [--outfile=<outfile>]
+
+Reads in a trace file or stdin, and creates HTML output of the chrome://tracing
+page with the trace file embedded in it. Saving this output as a .html file
+provides a stand-alone HTML page of the trace.
+
+The `--title` option sets the title of the HTML page, which helps keep different
+traces separate.
+
+The `--outfile` option sets a file to write out to, which might be useful for
+scripting or to save some performance by avoiding copying the huge output
+through stdout.
+
+Example usage:
+    trace2html --title='Build with gcc' intrace.json --outfile="trace.html"
+Or for stdin:
+    cat intrace.json | trace2html > trace.html
+"""
+
+
+from __future__ import print_function
+import base64
+import datetime
+import gzip
+import io
+import json
+import optparse
+import sys
+from pathlib import Path
+
+
+def get_first_section():
+    return base64.b64decode(b"@FIRST_SECTION_BYTESTRING@")
+
+
+def get_second_section():
+    bstring = base64.b64decode(b"@SECOND_SECTION_BYTESTRING@")
+    backing = io.BytesIO(bstring)
+    with gzip.GzipFile(fileobj=backing, mode="rb") as f:
+        second = f.read()
+    return second
+
+
+def get_third_section():
+    return base64.b64decode(b"@THIRD_SECTION_BYTESTRING@")
+
+
+def get_trace_b64(trace):
+    backing = io.BytesIO()
+    with gzip.GzipFile(fileobj=backing, mode='wb', mtime=0) as f:
+        f.write(trace)
+    return base64.b64encode(backing.getvalue())
+
+
+def get_html(trace, title):
+    return (
+        get_first_section()
+        + title.encode("utf-8")
+        + get_second_section()
+        + get_trace_b64(trace)
+        + get_third_section()
+    )
+
+
+def create_title(infile):
+    timestring = datetime.datetime.now(datetime.timezone.utc).strftime("%I:%M%p UTC on %B %d, %Y")
+    if infile:
+        return f"Trace created from {infile} at {timestring}"
+    return f"Trace created at {timestring}"
+
+
+def get_parser():
+    parser = optparse.OptionParser(__doc__)
+    parser.add_option(
+        "-t",
+        "--title",
+        dest="title",
+        help="The title to use for the HTML page.",
+    )
+    parser.add_option(
+        "-o",
+        "--outfile",
+        dest="outfile",
+        help="Write the HTML to the given file.",
+    )
+    return parser
+
+
+def main(argv):
+    parser = get_parser()
+    (options, args) = parser.parse_args(argv)
+
+    if len(args) == 0:
+        trace = sys.stdin.read()
+    elif len(args) == 1:
+        infile = args[0]
+        trace = Path(infile).read_bytes()
+    else:
+        parser.print_help()
+        print("\nERROR: too many arguments\n")
+        return 1
+
+    title = options.title or create_title(infile)
+    contents = get_html(trace, title)
+
+    if options.outfile:
+        Path(options.outfile).write_bytes(contents)
+    else:
+        sys.stdout.buffer.write(contents)
+        sys.stdout.flush()
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
