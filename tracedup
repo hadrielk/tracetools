@@ -3,7 +3,7 @@
 # Copyright 2022 Hadriel Kaplan
 # See LICENSE file for MIT license.
 
-"""tracedup [--from-pid=<pid>] [--to-pid=<pid>] [--field=<field>] <pattern> [<filepath>]
+"""tracedup [--from-pid=<pid>] [--to-pid=<pid>] [--field=<field>] [--invert] <pattern> [<filepath>]
 
 Reads in a trace file or stdin, and duplicates entries of a given from-pid
 number matching the given regex pattern for the given field, and giving them
@@ -23,6 +23,8 @@ To choose a different key field, use the `--field=<field>` option.
 If the chosen field's type is not a string, it will be converted to a string
 before applying the regex pattern.
 
+The `--invert` option duplicates those that do NOT match the pattern.
+
 To apply different patterns to different fields, simply pipe multiple
 tracedup commands together, specifying the same pids.
 
@@ -39,8 +41,8 @@ Or for stdin:
 Example only copying entries of longer duration than 9,999,999 microseconds:
     tracedup --field=dur '^[1-9][0-9]{7,}$' intrace.json > outtrace.json
 
-Example only copying entries with names ending in `.a` or `.o`:
-    tracedup '\\.[ao]\\b' intrace.json > outtrace.json
+Example only copying entries with names ending in .a, .o, .c, .cpp, etc.:
+    tracedup '\\.(?:[aoc]|cc|cpp|cxx)\\b' intrace.json > outtrace.json
 """
 
 
@@ -54,8 +56,11 @@ import sys
 ENTRY_KEYS = ["traceEvents", "samples"]
 
 
-def dup_entries(entries, field, pattern, from_pid, to_pid):
+def dup_entries(entries, field, pattern, from_pid, to_pid, invert):
     match_re = re.compile(pattern)
+    match = lambda x: match_re.search(x) is not None
+    if invert:
+        match = lambda x: match_re.search(x) is None
     output = []
     for entry in entries:
         output.append(entry)
@@ -63,7 +68,7 @@ def dup_entries(entries, field, pattern, from_pid, to_pid):
             "pid" in entry
             and entry["pid"] == from_pid
             and field in entry
-            and match_re.search(str(entry[field]))
+            and match(str(entry[field]))
         ):
             clone = entry.copy()
             clone["pid"] = to_pid
@@ -71,13 +76,15 @@ def dup_entries(entries, field, pattern, from_pid, to_pid):
     return output
 
 
-def dup_json(trace, field, pattern, from_pid, to_pid, which=ENTRY_KEYS):
+def dup_json(trace, field, pattern, from_pid, to_pid, invert, which=ENTRY_KEYS):
     if isinstance(trace, list):
-        return dup_entries(trace, field, pattern, from_pid, to_pid)
+        return dup_entries(trace, field, pattern, from_pid, to_pid, invert)
     if isinstance(trace, dict):
         for key in which:
             if key in trace:
-                trace[key] = dup_entries(trace[key], field, pattern, from_pid, to_pid)
+                trace[key] = dup_entries(
+                    trace[key], field, pattern, from_pid, to_pid, invert
+                )
     return trace
 
 
@@ -121,6 +128,13 @@ def get_parser():
         default="name",
         help="Specify a JSON field to filter on (default: %default)",
     )
+    parser.add_option(
+        "-v",
+        "--invert",
+        dest="invert",
+        action="store_true",
+        help="Invert the match for the pattern (default: %default)",
+    )
     return parser
 
 
@@ -142,7 +156,9 @@ def main(argv):
     if to_pid == -1:
         to_pid = find_highest_pid(trace) + 1
 
-    output = dup_json(trace, options.field, args[0], options.from_pid, to_pid)
+    output = dup_json(
+        trace, options.field, args[0], options.from_pid, to_pid, options.invert
+    )
     json.dump(output, sys.stdout)
 
     return 0

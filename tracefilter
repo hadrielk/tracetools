@@ -3,7 +3,7 @@
 # Copyright 2022 Hadriel Kaplan
 # See LICENSE file for MIT license.
 
-"""tracefilter [--field=<field>] <pattern> [<filepath>]
+"""tracefilter [--field=<field>] [--invert] <pattern> [<filepath>]
 
 Filters a trace file.
 
@@ -20,6 +20,8 @@ To choose a different field, use the `--field=<field>` option.
 
 If the chosen field's type is not a string, it will be converted to a string
 before applying the regex pattern.
+
+The `--invert` option filters those that do NOT match the pattern.
 
 To apply different patterns to different fields, simply pipe multiple
 tracefilter commands together.
@@ -46,23 +48,26 @@ import re
 import sys
 
 
-def filter_entries(entries, field, pattern):
+def filter_entries(entries, field, pattern, invert):
     filter_re = re.compile(pattern)
+    match = lambda x: filter_re.search(x) is not None
+    if invert:
+        match = lambda x: filter_re.search(x) is None
     output = []
     for entry in entries:
-        if field in entry and filter_re.search(str(entry[field])):
+        if field in entry and match(str(entry[field])):
             continue
         output.append(entry)
     return output
 
 
-def filter_json(trace, field, pattern):
+def filter_json(trace, field, pattern, invert):
     if isinstance(trace, list):
-        return filter_entries(trace, field, pattern)
+        return filter_entries(trace, field, pattern, invert)
     if isinstance(trace, dict):
         for key in ["traceEvents", "samples"]:
             if key in trace:
-                trace[key] = filter_entries(trace[key], field, pattern)
+                trace[key] = filter_entries(trace[key], field, pattern, invert)
     return trace
 
 
@@ -73,6 +78,13 @@ def main(argv):
         dest="field",
         default="name",
         help="Specify a JSON field to filter on (default: %default)",
+    )
+    parser.add_option(
+        "-v",
+        "--invert",
+        dest="invert",
+        action="store_true",
+        help="Invert the match for the pattern (default: %default)",
     )
     (options, args) = parser.parse_args(argv)
 
@@ -86,7 +98,7 @@ def main(argv):
         print("\nERROR: no pattern given, or too many arguments\n")
         return 1
 
-    json.dump(filter_json(trace, options.field, args[0]), sys.stdout)
+    json.dump(filter_json(trace, options.field, args[0], options.invert), sys.stdout)
 
     return 0
 

@@ -8,13 +8,15 @@ For example:
 ninjatracing -a build/.ninja_log | tracefilter '\b(Staging|thirdparty)\b' | trace2object > trace.json
 ```
 
-Another example:
+Another example, this one creating a process-id of 1 for compiling and 2 for linking:
 ```bash
 cat infile.json \
-    | tracefilter '\b(Staging|thirdparty)\b' \
+    | tracefilter '\b(?:Staging|thirdparty)\b' \
     | tracename 'Building' \
-    | tracedup --to_pid=1 '\.[ao]\b' \
+    | tracedup --to_pid=1 '\.(?:[aoc]|cc|cpp|cxx)\b' \
     | tracename --pid=1 'Compiling' \
+    | tracedup --to_pid=2 --invert '\.(?:[aoc]|cc|cpp|cxx)\b' \
+    | tracename --pid=2 'Linking' \
     > trace.json
 ```
 
@@ -22,14 +24,17 @@ cat infile.json \
 
 Takes a trace file and filters out entries based on matching a given regex pattern for a given field.
 
-Usage: `tracefilter [--field=<field>] <pattern> [<filepath>]`
+Usage: `tracefilter [--field=<field>] [--invert] <pattern> [<filepath>]`
 
 Uses `stdin` by default, unless a `filepath` is given. The default field is "`name`", but can
 be changed with the `--field=<field>` option.
 
-By default, the given pattern is applied to the 'name' field of each Array
+By default, the given pattern is applied to the "`name`" field of each Array
 entry, or of the Array in the "`traceEvents`" and "`samples`" key fields if it's
 an Object-based JSON format. The input file/stdin can be Array or Object-based JSON.
+
+The `--invert` option filters those that do NOT match the pattern, however entries without
+the given field at all will not be filtered.
 
 Further details are available with `tracefilter -h`.
 
@@ -40,7 +45,7 @@ Takes a trace file and duplicates entries based on matching a given regex patter
 assigning them new PID numbers. This is useful to display separate graph sections of specific parts,
 since most visual tools separate time-lines by PID.
 
-Usage: `tracedup [--from-pid=<pid>] [--to-pid=<pid>] [--field=<field>] <pattern> [<filepath>]`
+Usage: `tracedup [--from-pid=<pid>] [--to-pid=<pid>] [--field=<field>] [--invert] <pattern> [<filepath>]`
 
 Uses `stdin` by default, unless a `filepath` is given.
 
@@ -53,6 +58,8 @@ is `0`, and the `--to-pid` is one more than the highest one in the file.
 By default, the given pattern is applied to the 'name' field of each Array
 entry, or of the Array in the "`traceEvents`" and "`samples`" key fields if it's
 an Object-based JSON format. The input file/stdin can be Array or Object-based JSON.
+
+The `--invert` option duplicates those that do NOT match the pattern.
 
 Further details are available with `tracedup -h`.
 
