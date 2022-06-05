@@ -1,15 +1,22 @@
 # tracetools
-Utility programs to manipulate Chrome-style trace files, and in particular those output by
-[ninjatracing](https://github.com/nico/ninjatracing) for the purpose of build-time analysis.
+Utility programs to manipulate Chrome trace files, and in particular those output by
+[ninjatracing](https://github.com/nico/ninjatracing) for the purpose of build-tool analysis.
 
-All the scripts in here are composable by piping them together, in any order.
+* [tracefilter](#tracefilter): filter out portions of the trace using regex.
+* [tracedup](#tracedup): duplicate portions of the trace into separate PIDs.
+* [tracename](#tracename): name PIDs and TIDs in the trace.
+* [trace2html](#trace2html): create a stand-alone HTML file of the trace with Chrome-tracing UI.
+* [trace2object](#trace2object): convert trace JSON Array format to Object format.
+
+All the scripts in here are composable by piping them together, in any order. (except `trace2html`, which generates HTML so it has to be last if used)
 
 For example:
 ```bash
-ninjatracing -a build/.ninja_log | tracefilter '\b(Staging|thirdparty)\b' | trace2object > trace.json
+ninjatracing -a build/.ninja_log | tracefilter '\b(Staging|thirdparty)\b' > trace.json
 ```
 
-Another example, this one creating a process-id of 1 for compiling and 2 for linking:
+Another example, this one creating a process-id of 1 for compiling and 2 for linking, and
+resulting in a stand-alone HTML file with Google's Chrome-tracing UI and the trace embedded:
 ```bash
 cat infile.json \
     | tracefilter '\b(?:Staging|thirdparty)\b' \
@@ -18,8 +25,10 @@ cat infile.json \
     | tracename --pid=1 'Compiling' \
     | tracedup --to_pid=2 --invert '\.(?:[aoc]|cc|cpp|cxx)\b' \
     | tracename --pid=2 'Linking' \
-    > trace.json
+    | trace2html --title='Build times for gcc' \
+    > trace.html
 ```
+
 
 ## tracefilter
 
@@ -82,6 +91,24 @@ If `--tid` is given, assigns the name to that TID, for the given PID.
 Further details are available with `tracename -h`.
 
 
+## trace2html
+
+Reads in a trace file or stdin, and generates a stand-alone HTML file with
+Google Chrome's tracing UI embedded in it, as well as the trace file.
+
+This can be opened and used in any browser.
+
+Usage: `trace2html [--title=<title>] [<filepath>] [--outfile=<outfile>]`
+
+The `--title` option sets the title of the HTML page, which helps keep different
+traces separate. If `--title` is not given, one will be created for you which
+includes the current data and time.
+
+The `--outfile` option sets a file to write out to, which might be useful for
+scripting or to save some performance by avoiding copying the huge output
+through stdout.
+
+
 ## trace2object
 
 Takes a JSON Array-based trace file and converts it to an Object-based one, with the
@@ -93,15 +120,14 @@ Usage: `trace2object [<filepath>]`
 Uses `stdin` by default, unless a `filepath` is given. If the input JSON is already
 Object-based, it is passed through unchanged.
 
+Note: some viewing tools cannot handle the Object-based format.
 
 ## Background
 
 Trace files come in many formats. The tools in here are meant for the JSON trace file
 format [specified by Google](https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview).
 
-Such files can be viewed in:
-* [Perfetto](https://ui.perfetto.dev/)
-* [Chrome tracing](https://www.chromium.org/developers/how-tos/trace-event-profiling-tool/) - open Chrome and put `about:tracing` in the address box.
-* [Speedscope](https://www.speedscope.app)
-
-...and others.
+Example programs such files can be viewed in:
+* [Perfetto](https://ui.perfetto.dev/): an excellent viewer with many features, made by Google and the successor to Chrome's `about:tracing`. Works in any browser.
+* [Chrome tracing](https://www.chromium.org/developers/how-tos/trace-event-profiling-tool/): open Chrome and put `about:tracing` in the address box.
+* [Speedscope](https://www.speedscope.app): not as useful as some others for duration events, but the "Left order" view is unique, and for process performance stack trace views the "Sandwhich" view is quite useful.
