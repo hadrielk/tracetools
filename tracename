@@ -18,7 +18,7 @@ If `--tid` is given, assigns the name to that TID, for the given PID.
 Example usage:
     tracename intrace.json 'MyApp' > outtrace.json
 Or for stdin:
-    cat intrace.json | tracename - 'MyApp' > outtrace.json
+    cat intrace.json | tracename 'MyApp' > outtrace.json
 
 Example assigning "Server" to PID 2:
     tracename intrace.json --pid=2 'Server' > outtrace.json
