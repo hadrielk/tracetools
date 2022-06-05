@@ -71,11 +71,11 @@ def dup_entries(entries, field, pattern, from_pid, to_pid):
     return output
 
 
-def dup_json(trace, field, pattern, from_pid, to_pid):
+def dup_json(trace, field, pattern, from_pid, to_pid, which=ENTRY_KEYS):
     if isinstance(trace, list):
         return dup_entries(trace, field, pattern, from_pid, to_pid)
     if isinstance(trace, dict):
-        for key in ENTRY_KEYS:
+        for key in which:
             if key in trace:
                 trace[key] = dup_entries(trace[key], field, pattern, from_pid, to_pid)
     return trace
@@ -85,12 +85,12 @@ def find_highest_pid_in(entries):
     return max((entry.get("pid", 0) for entry in entries), default=0)
 
 
-def find_highest_pid(trace):
+def find_highest_pid(trace, which=ENTRY_KEYS):
     if isinstance(trace, list):
         return max(find_highest_pid_in(trace), 0)
     if isinstance(trace, dict):
         pid = 0
-        for key in ENTRY_KEYS:
+        for key in which:
             if key in trace:
                 pid = max(find_highest_pid_in(trace[key]), pid)
     return pid
