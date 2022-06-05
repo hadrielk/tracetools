@@ -56,6 +56,21 @@ an Object-based JSON format. The input file/stdin can be Array or Object-based J
 Further details are available with `tracedup -h`.
 
 
+## tracename
+
+Reads in a trace file or stdin, and adds a metadata entry to assign a display name
+for the given PID or TID.
+
+Usage: `tracename ( <filepath> | - ) [ --pid=<pid> [--tid=<tid>]] <name>`
+
+If no `--pid` is given, defaults naming PID 0.
+
+If `--pid` is given, assigns the name to that PID.
+If `--tid` is given, assigns the name to that TID, for the given PID.
+
+Further details are available with `tracename -h`.
+
+
 ## trace2object
 
 Takes a JSON Array-based trace file and converts it to an Object-based one, with the

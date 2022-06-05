@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+
+# Copyright 2022 Hadriel Kaplan
+# See LICENSE file for MIT license.
+
+"""tracename ( <filepath> | - ) [ --pid=<pid> [--tid=<tid>]] <name>
+
+Reads in a trace file or stdin, and adds a metadata entry to assign a name
+for the given PID or TID.
+
+The trace file format can be either Array or Object-based JSON.
+
+If no `--pid` is given, defaults naming PID 0.
+
+If `--pid` is given, assigns the name to that PID.
+If `--tid` is given, assigns the name to that TID, for the given PID.
+
+Example usage:
+    tracename intrace.json 'MyApp' > outtrace.json
+Or for stdin:
+    cat intrace.json | tracename - 'MyApp' > outtrace.json
+
+Example assigning "Server" to PID 2:
+    tracename intrace.json --pid=2 'Server' > outtrace.json
+
+Example assigning "Poller" to TID42 of PID 1:
+    tracename intrace.json --pid=1 --tid=42 'Poller' > outtrace.json
+"""
+
+
+from __future__ import print_function
+import json
+import optparse
+import sys
+
+
+ENTRY_KEYS = ["traceEvents", "samples"]
+
+
+def pid_metadata(pid, tid, name):
+    return {"name": "process_name", "ph": "M", "pid": int(pid), "args": {"name": name}}
+
+
+def tid_metadata(pid, tid, name):
+    return {
+        "name": "thread_name",
+        "ph": "M",
+        "pid": int(pid),
+        "tid": int(tid),
+        "args": {"name": name},
+    }
+
+
+def add_name(trace, pid, tid, name, which=ENTRY_KEYS):
+    func = pid_metadata
+    if tid >= 0:
+        func = tid_metadata
+    if isinstance(trace, list):
+        trace.insert(0, func(pid, tid, name))
+    elif isinstance(trace, dict):
+        for key in which:
+            if key in trace:
+                trace[key].insert(0, func(pid, tid, name))
+    return trace
+
+
+def get_parser():
+    parser = optparse.OptionParser(__doc__)
+    parser.add_option(
+        "-f",
+        "--pid",
+        dest="pid",
+        type="int",
+        default=0,
+        help="The PID number to assign the name for (default: %default)",
+    )
+    parser.add_option(
+        "-t",
+        "--tid",
+        dest="tid",
+        type="int",
+        default=-1,
+        help="The TID number to assign the name for (default: None, the whole PID)",
+    )
+    parser.add_option(
+        "--stdin",
+        dest="use_stdin",
+        action="store_true",
+        help="Use stdin for input (can just be a '-' instead)",
+    )
+    return parser
+
+
+def main(argv):
+    # optparse can't handle a single dash
+    argv = ["--stdin" if x == "-" else x for x in argv]
+
+    parser = get_parser()
+    (options, args) = parser.parse_args(argv)
+
+    if options.use_stdin:
+        trace = json.load(sys.stdin)
+    elif len(args) != 2:
+        parser.print_help()
+        print("\nERROR: no input file given, or no pattern, or too many arguments\n")
+        return 1
+    else:
+        with open(args[0], "r") as file:
+            trace = json.load(file)
+
+    json.dump(add_name(trace, options.pid, options.tid, args[1]), sys.stdout)
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
